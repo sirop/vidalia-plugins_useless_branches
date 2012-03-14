@@ -29,7 +29,9 @@ var tbb = {
         // Show a popup when tor's started so that users wait for the new
         // Firefox, so that they don't open a firefox themselves and think they
         // are using tor when they are not?
+	if(this.tab.getSetting("DontShowTrayBox", "false") != "true"){
         torControl["authenticated()"].connect(this, this.showWaitDialog);
+	}
         torControl["authenticated()"].connect(this, this.startSubProcess);
     },
 
@@ -61,6 +63,12 @@ var tbb = {
         if(groupBox == null) {
             return this.tab;
         }
+	 
+	var trayBox = this.widget.children()[findWidget(this.widget, "TrayShowBox")];
+        if(groupBox == null) {
+            return this.tab;
+        }
+	
 
         this.btnSave = this.widget.children()[findWidget(this.widget, "btnSave")];
         if(this.btnSave != null) {
@@ -99,6 +107,15 @@ var tbb = {
             if(this.tab.getSetting("DontShowCloseDialog", "false") != "true")
                 this.chkShowDialog.setCheckState(Qt.Checked);
         }
+	
+	this.chkTrayShow = trayBox.children()[findWidget(trayBox, "chkTrayShow")];
+        if(this.chkTrayShow != null) {
+            if(this.tab.getSetting("DontShowTrayBox", "false") != "true")
+                this.chkTrayShow.setCheckState(Qt.Checked);
+        }
+	
+	
+	
 
         this.lblHost = portInfo.children()[findWidget(portInfo, "lblHost")];
         this.lblHost.text = this.host;
@@ -113,6 +130,7 @@ var tbb = {
         this.tab.saveSetting(this.BrowserExecutable, this.lineExecutable.text);
         this.tab.saveSetting(this.BrowserDirectory, this.lineDirectory.text);
         this.tab.saveSetting("DontShowCloseDialog", String(this.chkShowDialog.checkState() != Qt.Checked));
+	this.tab.saveSetting("DontShowTrayBox", String(this.chkTrayShow.checkState() != Qt.Checked));
     },
 
     onSubProcessFinished: function(exitCode, exitStatus) {
@@ -192,8 +210,7 @@ var tbb = {
 
         this.browserProcess.setEnvironment(this.updateBrowserEnv());
 
-        var browserExecutable = QDir.toNativeSeparators(browserDirectory + "/App/Firefox/" + 
-                                                        browserDirectoryFilename);
+        var browserExecutable = QDir.toNativeSeparators(browserDirectoryFilename);
 
         var profileDir = QDir.toNativeSeparators(browserDirectory + "/Data/profile");
         var browserDirObj = new QDir(browserDirectory);
@@ -204,7 +221,7 @@ var tbb = {
             this.copy_dir(browserDirectory + "/App/DefaultData/profile", browserDirectory + "/Data/profile");
         }
 
-        /* Copy the plugins directory if it's not already there */
+        /* Copy the plugins directory if it's not already there; Do we have any /App/DefaultData/plugins directory ? */
         if (!browserDirObj.exists("Data/plugins")) {
             browserDirObj.mkpath("Data/plugins");
             this.copy_dir(browserDirectory + "/App/DefaultData/plugins", browserDirectory + "/Data/plugins");
@@ -304,11 +321,19 @@ var tbb = {
 
     showWaitDialog: function() {
         if(QSystemTrayIcon.supportsMessages()) {
+	                  if (this.browserProcess.state() == QProcess.Running) {
 			      var tray = new QSystemTrayIcon();
 			      tray.show();
-            tray.showMessage("Remember", 
+			      tray.showMessage("Notification", "Firefox is already running. If the TOR network is reestablished, feel free to surf.", 
+                              QSystemTrayIcon.Warning, 40000);
+			  } else
+			     {
+			      var tray = new QSystemTrayIcon();
+			      tray.show();
+			      tray.showMessage("Remember", 
                              "Please wait a few seconds, a Tor enabled Firefox will start right away...", 
-                             QSystemTrayIcon.Warning, 40000);
+                              QSystemTrayIcon.Warning, 40000);
+			     }
         } else
             vdebug("Doesn't support messages!");
     },
